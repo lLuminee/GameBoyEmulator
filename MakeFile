@@ -1,0 +1,17 @@
+PROJECTNAME = GameLumine
+OUTPUT_DIR = out
+
+INCLUDE_DIRS = -I include/SDL2 -Iinclude/imgui -Iinclude
+LIB_DIRS = -L lib
+
+ARGS = -Wall -Wextra -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic 
+
+# Options de compilation
+ARGS_ = -Wall -Wextra -O3 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic -mwindows -pipe
+
+LIBS = -lmingw32 -lSDL2main -lSDL2 -lnfd_d -lole32 -lcomctl32 -luuid -l libSDL2_mixer -pipe
+
+SRC = $(wildcard src/*.cpp)  $(wildcard imgui/*.cpp) $(wildcard imgui/*.c) $(wildcard src/screens/*.cpp) 
+
+default:
+	g++ $(SRC) -o $(OUTPUT_DIR)/$(PROJECTNAME) $(ARGS) $(INCLUDE_DIRS) $(LIB_DIRS) $(LIBS)  
