@@ -229,7 +229,7 @@ void Opcode::LD_DE_d16(Cpu* cpu, uint16_t opcode) {
 }
 
 void Opcode::JR_d8(Cpu* cpu, uint16_t opcode) {
-    int8_t i8 = static_cast<int8_t>((opcode & 0xFF00) >> 8);
+    int8_t i8 = (opcode & 0xFF00) >> 8;
     cpu->pc = cpu->pc + i8;
     std::cout << "FAIT !" << std::endl;
 }
@@ -276,11 +276,49 @@ void Opcode::EI(Cpu* cpu) {
 }
 
 void Opcode::HALT(Cpu* cpu) {
-    
+    cpu->IsHalt = 1;
+}
+
+void Opcode::LD_A_BC(Cpu* cpu) {
+    uint8_t value = cpu->Memory[cpu->BC];
+    cpu->AF = (value << 8) | (cpu->AF & 0x00FF);
+}
+
+void Opcode::SUB_B(Cpu* cpu) {
+    uint8_t B = (cpu->BC & 0xFF00) >> 8;
+    uint8_t A = (cpu->AF & 0xFF00) >> 8;
+    uint8_t result = A - B;
+    cpu->AF = (cpu->AF & 0x00FF) | (result << 8);
+    if (result == 0) cpu->z = 1;
+    else cpu->z = 0;
+    cpu->n = 1;
+    cpu->h = ((A & 0x0F) < (B & 0x0F)) ? 1 : 0;
+    cpu->c = (A < B) ? 1 : 0;
+    std::cout << "FAIT !" << std::endl;
+}
+
+void Opcode::JP_HL(Cpu* cpu) {
+    cpu->pc = cpu->HL;
+}
+
+void Opcode::RETI(Cpu* cpu) {
+    cpu->IME = 1;
+    cpu->pc = static_cast<uint16_t>(cpu->stack.back());
+}
+
+
+void Opcode::DEC_B(Cpu* cpu) {
+    uint8_t B = (cpu->BC & 0xFF00) >> 8;
+    B = B - 1;
+    cpu->BC = (cpu->BC & 0x00FF) | (B << 8);
+    if (B == 0) cpu->z = 1;
+    else cpu->z = 0;
+    cpu->n = 1;
+    cpu->h = 1;
+    std::cout << "FAIT !" << std::endl;
 }
 
 void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
-    cpu->OpCycle = 20;
     cpu->opcode = Opcode;
     cpu->last_pc = cpu->pc;
     
@@ -289,11 +327,13 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x00:
         std::cout << "FAIT !" << std::endl;
         cpu->OpcodeName = "NOP";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x01:
         LD_BC_d16(cpu, Opcode);
         cpu->OpcodeName = "LD BC,d16";
+        cpu->OpCycle = 12;
         cpu->pc += 3;
         break;
     case 0x02:
@@ -306,11 +346,13 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         cpu->OpcodeName = "INC B";
         break;
     case 0x05:
+        DEC_B(cpu);
         cpu->OpcodeName = "DEC B";
         break;
     case 0x06:
         LD_B_u8(cpu, Opcode);
         cpu->OpcodeName = "LD B,d8";
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
     case 0x07:
@@ -323,11 +365,15 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         cpu->OpcodeName = "ADD HL,BC";
         break;
     case 0x0A:
+        LD_A_BC(cpu);
         cpu->OpcodeName = "LD A,(BC)";
+        cpu->OpCycle = 8;
+        cpu->pc += 1;
         break;
     case 0x0B:
         DEC_BC(cpu); 
         cpu->OpcodeName = "DEC BC";
+        cpu->OpCycle = 8;
         cpu->pc += 1;
         break;
     case 0x0C:
@@ -336,11 +382,13 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x0D:
         DEC_C(cpu);
         cpu->OpcodeName = "DEC C";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x0E:
         LD_C_u8(cpu, Opcode);
         cpu->OpcodeName = "LD C,d8";
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
     case 0x0F:
@@ -352,16 +400,19 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x11:
         LD_DE_d16(cpu, Opcode);
         cpu->OpcodeName = "LD DE,d16";
+        cpu->OpCycle = 12;
         cpu->pc += 3;
         break;
     case 0x12:
         LD_DE_A(cpu);
         cpu->OpcodeName = "LD (DE),A";
+        cpu->OpCycle = 8;
         cpu->pc += 1;
         break;
     case 0x13:
         INC_DE(cpu);
         cpu->OpcodeName = "INC DE";
+        cpu->OpCycle = 8;
         cpu->pc += 1;
         break;
     case 0x14:
@@ -379,6 +430,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x18:
         JR_d8(cpu, Opcode);
         cpu->OpcodeName = "JR d8";
+        cpu->OpCycle = 12;
         cpu->pc += 2;
         break;
     case 0x19:
@@ -405,15 +457,18 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x20:
         JR_NZ_r8(cpu, Opcode);
         cpu->OpcodeName = "JR NZ,r8";
+        cpu->OpCycle = 8;
         break;
     case 0x21:
         LD_HL_d16(cpu, Opcode);
         cpu->OpcodeName = "LD HL,d16";
+        cpu->OpCycle = 12;
         cpu->pc += 3;
         break;
     case 0x22:
         LD_HL_Plus_A(cpu);
         cpu->OpcodeName = "LD_HL+_A";
+        cpu->OpCycle = 8;
         cpu->pc += 1;
         break;
     case 0x23:
@@ -440,6 +495,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x2A:
         LD_A_HL_Plus(cpu);
         cpu->OpcodeName = "LD HL,(a16)";
+        cpu->OpCycle = 8;
         cpu->pc += 1;
         break;
     case 0x2B:
@@ -454,6 +510,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x2E:
         LD_L_u8(cpu, Opcode);
         cpu->OpcodeName = "LD L,d8";
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
     case 0x2F:
@@ -465,6 +522,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x31:
         LD_SP_d16(cpu, Opcode);
         cpu->OpcodeName = "LD SP,d16";
+        cpu->OpCycle = 12;
         cpu->pc += 3;
         break;
     case 0x32:
@@ -500,6 +558,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x3C:
         INC_A(cpu);
         cpu->OpcodeName = "INC A";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x3D:
@@ -508,11 +567,13 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x3E:
         LD_A_d8(cpu, Opcode);
         cpu->OpcodeName = "LD A,d8";
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
     case 0x3F:
         CCF(cpu);
         cpu->OpcodeName = "CCF";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x40:
@@ -587,6 +648,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x57:
         LD_D_A(cpu);
         cpu->OpcodeName = "LD D,A";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x58:
@@ -682,6 +744,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x76:
         HALT(cpu);
         cpu->OpcodeName = "HALT";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x77:
@@ -690,6 +753,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x78:
         LD_A_B(cpu);
         cpu->OpcodeName = "LD A,B";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x79:
@@ -698,6 +762,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x7A:
         LD_A_D(cpu);
         cpu->OpcodeName = "LD A,D";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0x7B:
@@ -764,7 +829,10 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         cpu->OpcodeName = "ADC A,A";
         break;
     case 0x90:
+        SUB_B(cpu);
         cpu->OpcodeName = "SUB B";
+        cpu->OpCycle = 4;
+        cpu->pc += 1;
         break;
     case 0x91:
         cpu->OpcodeName = "SUB C";
@@ -859,6 +927,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xAF:
         XOR_A(cpu);
         cpu->OpcodeName = "XOR A";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0xB0:
@@ -867,6 +936,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xB1:
         OR_A_C(cpu);
         cpu->OpcodeName = "OR C";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0xB2:
@@ -921,8 +991,9 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         cpu->OpcodeName = "JP NZ,a16";
         break;
     case 0xC3:
-        cpu->OpcodeName = "JP a16";
         JP_a16(cpu, Opcode);
+        cpu->OpcodeName = "JP a16";
+        cpu->OpCycle = 16;
         break;
     case 0xC4:
         cpu->OpcodeName = "CALL NZ,a16";
@@ -939,11 +1010,13 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xC8:
         RET_Z(cpu);
         cpu->OpcodeName = "RET Z";
+        cpu->OpCycle = 20;
         cpu->pc += 1;
         break;
     case 0xC9:
         RET(cpu);
         cpu->OpcodeName = "RET";
+        cpu->OpCycle = 16;
         break;
     case 0xCA:
         cpu->OpcodeName = "JP Z,a16";
@@ -958,6 +1031,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xCD:
         CALL_a16(cpu, Opcode);
         cpu->OpcodeName = "CALL a16";
+        cpu->OpCycle = 24;
         break;
     case 0xCE:
         cpu->OpcodeName = "ADC A,d8";
@@ -993,6 +1067,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         cpu->OpcodeName = "RET C";
         break;
     case 0xD9:
+        RETI(cpu);
         cpu->OpcodeName = "RETI";
         break;
     case 0xDA:
@@ -1016,6 +1091,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xE0:
         LDH_a8_A(cpu, Opcode);
         cpu->OpcodeName = "LDH (a8),A";
+        cpu->OpCycle = 12;
         cpu->pc += 2;
         break;
     case 0xE1:
@@ -1043,7 +1119,9 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         cpu->OpcodeName = "ADD SP,r8";
         break;
     case 0xE9:
+        JP_HL(cpu);
         cpu->OpcodeName = "JP (HL)";
+        cpu->OpCycle = 4;
         break;
     case 0xEA:
         cpu->OpcodeName = "LD (a16),A";
@@ -1066,6 +1144,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xF0:
         LDH_A_a8(cpu, Opcode);
         cpu->OpcodeName = "LDH A,(a8)";
+        cpu->OpCycle = 12;
         cpu->pc += 2;
         break;
     case 0xF1:
@@ -1077,6 +1156,7 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xF3:
         DI(cpu);
         cpu->pc += 1;
+        cpu->OpCycle = 4;
         cpu->OpcodeName = "DI";
         break;
     case 0xF5:
@@ -1100,11 +1180,13 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0xFB:
         EI(cpu);
         cpu->OpcodeName = "EI";
+        cpu->OpCycle = 4;
         cpu->pc += 1;
         break;
     case 0xFE:
         CP_d8(cpu, Opcode);
         cpu->OpcodeName = "CP d8";
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
     case 0xFF:
@@ -1117,42 +1199,47 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
 }
 
 
+void ExeOp(Opcode &op, Cpu &cpu) {
+    uint16_t Opcode = cpu.Memory[cpu.pc + 1] << 8 | cpu.Memory[cpu.pc + 2];
+    cpu.id = cpu.Memory[cpu.pc]; 
+    op.SearchOpcode(&cpu, Opcode, cpu.id);
+    cpu.NextOpcode = cpu.Memory[cpu.pc + 1] << 8 | cpu.Memory[cpu.pc + 2];
+    cpu.NextId = cpu.Memory[cpu.pc];
+    cpu.AddOpcodeEntry(cpu.last_pc, cpu.id, std::string(cpu.OpcodeName), cpu.opcode); 
+}
 
 void Opcode::OpcodeStep(bool isStep, Opcode &op, Cpu &cpu)  {
-
+    std::cout << "MA BITE" << std::endl;
+    /*
     if (cpu.PasCall) {
-        if (cpu.pc != 0x0157) {
+        if (cpu.pc != 0x0220) {
             cpu.isStep = false;
         } else {
             cpu.PasCall = false;
             cpu.isStep = true;
-
         }
     }
-
+    */
+    
     if (cpu.Step && isStep) {
         cpu.state = 2;
         cpu.Step = false;
-        
-        uint16_t Opcode = cpu.Memory[cpu.pc + 1] << 8 | cpu.Memory[cpu.pc + 2];
-        cpu.id = cpu.Memory[cpu.pc]; 
-        op.SearchOpcode(&cpu, Opcode, cpu.id);
-        cpu.NextOpcode = cpu.Memory[cpu.pc + 1] << 8 | cpu.Memory[cpu.pc + 2];
-        cpu.NextId = cpu.Memory[cpu.pc];
-        cpu.AddOpcodeEntry(cpu.last_pc, cpu.id, std::string(cpu.OpcodeName), cpu.opcode);   
 
+        if (!cpu.IsHalt) {
+            ExeOp(op, cpu);   
         }
-
+    }
+    
     if (!isStep) {
         cpu.state = 0;
 
-        uint16_t Opcode = cpu.Memory[cpu.pc + 1] << 8 | cpu.Memory[cpu.pc + 2];
-        cpu.id = cpu.Memory[cpu.pc]; 
-        op.SearchOpcode(&cpu, Opcode, cpu.id);
-        cpu.NextOpcode = cpu.Memory[cpu.pc + 1] << 8 | cpu.Memory[cpu.pc + 2];
-        cpu.NextId = cpu.Memory[cpu.pc];
-        cpu.AddOpcodeEntry(cpu.last_pc, cpu.id, std::string(cpu.OpcodeName), cpu.opcode);   
-
-  
+        if (!cpu.IsHalt) {
+            ExeOp(op, cpu);
+        }
     }
+
+    if(cpu.IsHalt){cpu.OpCycle = 1;}
+
 }
+
+

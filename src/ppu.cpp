@@ -1,4 +1,4 @@
-#include "../include/grid.h"
+#include "../include/ppu.h"
 #include "../include/cpu.h"
 #include <iostream>
 #include <SDL.h>
@@ -21,11 +21,11 @@ void grid::Init(uint8_t* Memory, Cpu* cpu)
 
 void print(SDL_Renderer* renderer, int x, int y, int SizePixel, int color, Cpu* cpu, bool palette) {
     SDL_Rect rect = {x * SizePixel, y * SizePixel, SizePixel, SizePixel};
-
     uint8_t paletteColor;
 
     if (palette == 0) {paletteColor = cpu->OBJ_Palette_0[color];}
     else {paletteColor = cpu->OBJ_Palette_1[color];}
+    
     
     switch (paletteColor) {
         case 0:
@@ -44,16 +44,17 @@ void print(SDL_Renderer* renderer, int x, int y, int SizePixel, int color, Cpu* 
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Noir par défaut
             break;
     }
+
     SDL_RenderFillRect(renderer, &rect);
 }    
 
 void grid::Render_OAM(int block_id, int x, int y, uint8_t flags, Cpu* cpu) {
     // Extraction des flags individuels
-    bool Priority = flags & 0b10000000;
-    bool y_flip = flags & 0b01000000;
-    bool x_flip = flags & 0b00100000;
-    bool DMG_palette = flags & 0b00010000;
-    bool Bank = flags & 0b00001000;
+    bool Priority = flags & 0x80;        // Sprite priority over background
+    bool y_flip = flags & 0x40;          // Vertical flip
+    bool x_flip = flags & 0x20;          // Horizontal flip
+    bool DMG_palette = flags & 0x10;     // DMG palette selection
+    bool Bank = flags & 0x08;     
 
     // Ajustement du block_id si le Bank est activé
     if (Bank) {
@@ -63,32 +64,17 @@ void grid::Render_OAM(int block_id, int x, int y, uint8_t flags, Cpu* cpu) {
     // Parcours de chaque ligne et chaque pixel du bloc
     for (int line = 0; line < 8; ++line) {
         for (int pixel = 0; pixel < 8; ++pixel) {
-            // Détermination des indices réels en fonction des flips
+            // Détermination des positions réelles en fonction des retournements
             int actual_line = y_flip ? 7 - line : line;
             int actual_pixel = x_flip ? 7 - pixel : pixel;
 
-            // Calcul de l'index du pixel dans le bloc de tuiles
+            // Calcul de l'index dans le bloc de tiles
             int pixel_index = actual_line * 8 + actual_pixel;
-
-            // Récupération de la valeur du pixel dans le bloc de tuiles
             uint8_t pixel_value = Tile_Block[block_id][pixel_index];
 
-            // Application de la palette DMG si nécessaire
-            if (DMG_palette && Main_grid[x + pixel][y + line] == 0) {
-                OAM_Palette[x + pixel][y + line] = 1;
-            } else {
-                OAM_Palette[x + pixel][y + line] = 0;
-            }
-
-            // Rendu dans la grille principale en fonction de la priorité
-            if (Priority) {
-                Main_grid[x + pixel][y + line] = pixel_value;
-            } else {
-                if (Main_grid[x + pixel][y + line] != 0) {
-                    Main_grid[x + pixel][y + line] |= pixel_value;
-
-                }
-            }
+            // Définir le pixel dans la grille d'affichage
+            if (pixel_value == 0) {continue;}
+            Main_grid[x + pixel][y + line] = pixel_value;
         }
     }
 }
@@ -98,8 +84,12 @@ void grid::Render(SDL_Renderer* renderer, Cpu* cpu) {
     bool palette;
     for (int x = 0; x < 160; ++x) {
         for (int y = 0; y < 144; ++y) {
+            
             if (OAM_Palette[x][y] == 1) {palette = true;} else {palette = false;}
+            
             print(renderer, x, y, 5, Main_grid[x][y], cpu, palette);
+            
+
         }
     }
 }
@@ -123,6 +113,9 @@ void grid::Tile_Block_Render(SDL_Renderer* renderer, uint8_t* Memory, Cpu* cpu) 
 
 void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
     memcpy(cpu->VRAM, Memory + 0x8000, sizeof(cpu->VRAM));
+    uint8_t offset_tile_map;
+    if (cpu->LCDC.BG_Window_tiles == 1) {offset_tile_map = 255;}; 
+    if (cpu->LCDC.BG_Window_tiles == 0) {offset_tile_map = 0;}; 
 
     // Calcul du tile block
     for (int block_index = 0; block_index < 382; ++block_index) {
@@ -155,7 +148,7 @@ void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
         for (int pixel = 0; pixel < 64; ++pixel) {
             int col = x + (pixel % 8);
             int row = y + (pixel / 8);
-            uint8_t value = Tile_Block[tileID][pixel];
+            uint8_t value = Tile_Block[tileID + offset_tile_map][pixel];
             Tile_Map_1[col][row] = value;
         }
     }
@@ -174,7 +167,7 @@ void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
         for (int pixel = 0; pixel < 64; ++pixel) {
             int col = x + (pixel % 8);
             int row = y + (pixel / 8);
-            uint8_t value = Tile_Block[tileID][pixel];
+            uint8_t value = Tile_Block[tileID + offset_tile_map][pixel];
             Tile_Map_2[col %248 ][row % 248] = value;
         }
     }
@@ -182,7 +175,7 @@ void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
     // Calcul du framebuffer
     std::fill(&Main_grid[0][0], &Main_grid[0][0] + sizeof(Main_grid), 0);
 
-    // Affichage de la fenêtre visible
+    // Calculé la fenêtre visible
     for (int y = 0; y < 144; y++) {  // Hauteur de la fenêtre visible
         for (int x = 0; x < 160; x++) {  // Largeur de la fenêtre visible
             
@@ -191,7 +184,7 @@ void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
             int tile_y = (cpu->SCY + y) % 256;  // Modulo pour le wrapping vertical
                         
             // Afficher le pixel à l'écran
-            if (cpu->ActiveTileMap == 0) {
+            if (cpu->LCDC.BG_tile_map == 0) {
                 Main_grid[x][y] = Tile_Map_1[tile_x][tile_y];
 
             } else{
@@ -201,6 +194,7 @@ void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
         }
     }
 
+    // Calcule de OAM
     uint8_t NubmerOfPrintOnMemeLigne = 0;
     uint8_t Last_Y = 0;
     for (int i = 0; i < 160; i += 4) {
@@ -212,7 +206,13 @@ void grid::CalculateTile(uint8_t* Memory, Cpu* cpu) {
         if (Last_Y == y) {NubmerOfPrintOnMemeLigne++;} else {NubmerOfPrintOnMemeLigne = 0; Last_Y = y;}
 
         if (NubmerOfPrintOnMemeLigne < 10) {
-            Render_OAM(id, x, y, flag, cpu);
+            /*
+            
+            Render_OAM(id, x, y, flag, cpu); ------------------------------------------------------------------------------------------------------------
+            
+            */
+   
+
         }
         
     }

@@ -26,7 +26,9 @@ public:
     std::atomic<bool> isStep = true;   // Contrôle du step pour le CPU
     const char * RomPath;
 
+    SDL_Window* Main_Windo;
     SDL_Window* VRAM_Windo;
+    SDL_Renderer* FrameBuffer;
     SDL_Renderer* VRAM_Renderer;
 
 
@@ -41,7 +43,7 @@ public:
     int OpCycle;
 
     uint16_t AF = 0x0000; // Accumulator
-    uint16_t BC = 0x0000; // B HI C low
+    uint16_t BC = 0x0000; // B HI C lowssssssssss
     uint16_t DE = 0x0000; // D HI E low
     uint16_t HL = 0x0000; // H HI L low
 
@@ -57,16 +59,44 @@ public:
     uint8_t WY;
     uint8_t WX;
     bool IME = 0;
-    uint8_t LCDC;
+    bool IsHalt = 0;
+    struct IE_str // Interrupt enable
+    {
+        bool VBlank;
+        bool LCD;
+        bool Timer;
+        bool Serial;
+        bool Joypad;
+    };
+    struct IF_str // Interrupt flag
+    {
+        bool VBlank;
+        bool LCD;
+        bool Timer;
+        bool Serial;
+        bool Joypad;
+    };
+    struct LCDC_str {
+        bool BG_Window_enable_priority;
+        bool OBJ_enable;
+        bool OBJ_size;
+        bool BG_tile_map;
+        bool BG_Window_tiles;
+        bool Window_enable;
+        bool Window_tile_map;
+        bool LCD_PPU_enable;
+    };
+    
+    IE_str IE{0,0,0,0};
+    IF_str IF{0,0,0,0};
 
-    bool ActiveTileMap = 0;
-
+    LCDC_str LCDC{1,0,0,1,1,0,1,1};
     uint8_t BG_Palette[4];    // Palette de fond (Background)
     uint8_t OBJ_Palette_0[4]; // Sprite Palette 0 (0BP0)
     uint8_t OBJ_Palette_1[4]; // Sprite Palette 1 (0BP1)
 
 
-    uint8_t Memory[0xFFFF];
+    uint8_t Memory[0xFFFF + 1];
     uint8_t OAM[0xFE9F - 0xFE00 + 1];
     uint8_t VRAM[0x2000 + 1];
     char RomName[16];  

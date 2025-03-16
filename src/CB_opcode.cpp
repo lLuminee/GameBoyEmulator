@@ -55,6 +55,58 @@ void CB_op::SET_7_HL( Cpu* cpu) {
     cpu->Memory[cpu->HL] |= 0x80;
 }
 
+void CB_op::RES_0_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0xFE;
+}
+
+void CB_op::SET_0_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] |= 0x01;
+}
+
+void CB_op::SET_5_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] |= 0x20;
+}
+
+void CB_op::RES_4_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0xEF;
+}
+
+void CB_op::SET_2_A(Cpu* cpu) {
+    cpu->AF = (cpu->AF & 0xFFFB) | 0x0004; // 0xFFFB est le masque pour garder les autres bits inchangés
+}
+
+void CB_op::SET_2_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] |= 0x04;
+}
+
+void CB_op::RES_2_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0xFB;
+}
+
+void CB_op::RES_0_E(Cpu* cpu) {
+    cpu->DE &= 0xFFFE;
+}
+
+void CB_op::RES_1_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0xFD;
+}
+
+void CB_op::RES_6_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0x9F;
+}
+
+void CB_op::SET_3_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] |= 0x08;
+}
+
+void CB_op::RES_5_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0xEF;
+}
+
+void CB_op::RES_3_HL(Cpu* cpu) {
+    cpu->Memory[cpu->HL] &= 0xF7;
+}
+
 void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
 
     switch (id)
@@ -415,6 +467,7 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0x76:
         BIT_6_HL(cpu);
+        cpu->OpCycle = 8;
         cpu->pc += 2;   
         // BIT 6,(HL)
         break;
@@ -441,6 +494,7 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0x7E:
         BIT_7_HL(cpu, opcode);
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
     case 0x7F:
@@ -456,6 +510,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 0,D
         break;
     case 0x83:
+        RES_0_E(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 0,E
         break;
     case 0x84:
@@ -465,6 +522,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 0,L
         break;
     case 0x86:
+        RES_0_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 0,(HL)
         break;
     case 0x87:
@@ -489,6 +549,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 1,L
         break;
     case 0x8E:
+        RES_1_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 1,(HL)
         break;
     case 0x8F:
@@ -513,6 +576,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 2,L
         break;
     case 0x96:
+        RES_2_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 2,(HL)
         break;
     case 0x97:
@@ -537,6 +603,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 3,L
         break;
     case 0x9E:
+        RES_3_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 3,(HL)
         break;
     case 0x9F:
@@ -561,6 +630,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 4,L
         break;
     case 0xA6:
+        RES_4_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 4,(HL)
         break;
     case 0xA7:
@@ -585,6 +657,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 5,L
         break;
     case 0xAE:
+        RES_5_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 5,(HL)
         break;
     case 0xAF:
@@ -609,6 +684,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // RES 6,L
         break;
     case 0xB6:
+        RES_6_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // RES 6,(HL)
         break;
     case 0xB7:
@@ -634,6 +712,7 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0xBE:
         RES_7_HL(cpu, opcode);
+        cpu->OpCycle = 16;
         cpu->pc += 2;
         break;
     case 0xBF:
@@ -658,6 +737,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // SET 0,L
         break;
     case 0xC6:
+        SET_0_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // SET 0,(HL)
         break;
     case 0xC7:
@@ -683,6 +765,7 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0xCE:
         SET_1_HL(cpu);
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         // SET 1,(HL)
         break;
@@ -708,9 +791,15 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // SET 2,L
         break;
     case 0xD6:
+        SET_2_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // SET 2,(HL)
         break;
     case 0xD7:
+        SET_2_A(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // SET 2,A
         break;
     case 0xD8:
@@ -732,6 +821,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // SET 3,L
         break;
     case 0xDE:
+        SET_3_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // SET 3,(HL)
         break;
     case 0xDF:
@@ -757,6 +849,7 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0xE6:
         SET_4_HL(cpu);
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         // SET 4,(HL)
         break;
@@ -782,6 +875,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         // SET 5,L
         break;
     case 0xEE:
+        SET_5_HL(cpu);
+        cpu->OpCycle = 8;
+        cpu->pc += 2;
         // SET 5,(HL)
         break;
     case 0xEF:
@@ -807,6 +903,7 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0xF6:
         SET_6_HL(cpu);
+        cpu->OpCycle = 8;
         cpu->pc += 2;
         break;
         // SET 6,(HL)
@@ -834,7 +931,9 @@ void CB_op::SearchCBOpcode(Cpu* cpu, uint16_t opcode, uint8_t id) {
         break;
     case 0xFE:
         SET_7_HL(cpu);
+        cpu->OpCycle = 8;
         cpu->pc += 2;
+
         // SET 7,(HL)
         break;
     case 0xFF:

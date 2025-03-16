@@ -31,6 +31,9 @@ void Cpu::Init(const char *path) {
     h = 0x00; // half carry flag
     c = 0x00; // carry flag
 
+
+    
+
     RomName[16] = '\0';
     licensee_code[1] = 0;
 
@@ -194,8 +197,34 @@ void Cpu::_cpu() {
     LYC = Memory[0xFF45];
     WY = Memory[0xFF4A];
     WX = Memory[0xFF4B];
-    LCDC = Memory[0xFF40];
-    ActiveTileMap = Memory[0xFF40] & 0x40  ? 0 : 1;
+
+    /*Update LCDC*/
+    for (int bit_index=0; bit_index<8; bit_index++) {
+        uint8_t bit = (Memory[0xFF40] >> (8 - bit_index)) & 1;
+        switch (8 - bit_index) {
+            case 0:
+                LCDC.BG_Window_enable_priority = bit ? true : false;
+                break;
+            case 1:
+                LCDC.OBJ_enable =   bit ? true : false;
+                break;
+            case 2:
+                LCDC.OBJ_size = bit ? true : false;
+                break;
+            case 3:
+                LCDC.BG_tile_map =  bit ? true : false;
+                break;
+            case 4:
+                LCDC.BG_Window_tiles = bit ? true : false;
+                break;
+            case 5:
+                LCDC.Window_enable =    bit ? true : false;
+                break;
+            case 6:
+                LCDC.Window_tile_map =  bit ? true : false;
+                break;
+        }
+    }
 
      // Palette de fond (Background)
     uint8_t bgp = Memory[0xFF47];

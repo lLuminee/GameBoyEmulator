@@ -41,9 +41,13 @@ private:
     void INC_A(Cpu* cpu);
     void LD_L_u8(Cpu* cpu, uint16_t opcode);
     void LD_B_u8(Cpu* cpu, uint16_t opcode);
-    void EI(Cpu* cpu); // TODO -------------------------------------------------
-    void HALT(Cpu* cpu); // TODO -------------------------------------------------
-
+    void EI(Cpu* cpu); 
+    void HALT(Cpu* cpu); 
+    void SUB_B(Cpu* cpu);
+    void LD_A_BC(Cpu* cpu);
+    void JP_HL(Cpu* cpu);
+    void RETI(Cpu* cpu);
+    void DEC_B(Cpu* cpu);
 
 public:
 

@@ -29,6 +29,7 @@ void DebugScreen::Render() {
 
     ImGui::SameLine();
     if (ImGui::Button("Step")) {
+        std::cout << "Step" << (cpu.Step) << std::endl;
         if (cpu.Step) {
             cpu.Step = false;
         }
@@ -197,5 +198,10 @@ void DebugScreen::Render() {
     }
     ImGui::NextColumn();
     ImGui::Columns(1);
+    
+    ImGui::Text("LY : %02X", cpu.LY);
+    ImGui::SameLine;
+    ImGui::Text("LYC : %02X", cpu.LYC);
+
 
 }
