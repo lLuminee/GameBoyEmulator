@@ -2,5 +2,5 @@ Thumbs.db
 
 out/
 lib/
-include/SDL2/
+include/SFML
 .vscode/

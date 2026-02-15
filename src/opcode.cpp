@@ -28,15 +28,15 @@ void Opcode::LD_SP_d16(Cpu* cpu, uint16_t opcode) {
 
 }
 
-    void Opcode::CALL_a16(Cpu* cpu, uint16_t adresse) {
-        auto LSB = (adresse & 0xFF00) >> 8;
-        auto MSB = adresse & 0x00FF;
-        uint16_t addr = MSB << 8 | LSB;
-        cpu->LastCalls = cpu->pc + 3;
-        cpu->stack.push_back(cpu->pc + 3 /* Call = 3 bytes*/);
-        cpu->pc = addr;
-        std::cout << "FAIT ! " << cpu->toHexString(addr) << std::endl;
-    }
+void Opcode::CALL_a16(Cpu* cpu, uint16_t adresse) {
+    auto LSB = (adresse & 0xFF00) >> 8;
+    auto MSB = adresse & 0x00FF;
+    uint16_t addr = MSB << 8 | LSB;
+    cpu->LastCalls = cpu->pc + 3;
+    cpu->stack.push_back(cpu->pc + 3 /* Call = 3 bytes*/);
+    cpu->pc = addr;
+    std::cout << "FAIT ! " << cpu->toHexString(addr) << std::endl;
+}
 
 void Opcode::LD_HL_d16(Cpu* cpu, uint16_t opcode) {
     auto LSB = (opcode & 0xFF00) >> 8;
@@ -308,17 +308,12 @@ void Opcode::RETI(Cpu* cpu) {
 
 
 void Opcode::DEC_B(Cpu* cpu) {
-    uint8_t B = (cpu->BC & 0xFF00) >> 8;
-    B = B - 1;
-    cpu->BC = (cpu->BC & 0x00FF) | (B << 8);
-    if (B == 0) cpu->z = 1;
-    else cpu->z = 0;
-    cpu->n = 1;
-    cpu->h = 1;
+    cpu->DecrRegistre_high(&cpu->BC);
     std::cout << "FAIT !" << std::endl;
 }
 
 void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
+    (void) id;
     cpu->opcode = Opcode;
     cpu->last_pc = cpu->pc;
     
@@ -348,6 +343,8 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
     case 0x05:
         DEC_B(cpu);
         cpu->OpcodeName = "DEC B";
+        cpu->OpCycle = 4;
+        cpu->pc += 1;
         break;
     case 0x06:
         LD_B_u8(cpu, Opcode);
@@ -578,6 +575,9 @@ void Opcode::SearchOpcode(Cpu* cpu, uint16_t Opcode, uint8_t id) {
         break;
     case 0x40:
         cpu->OpcodeName = "LD B,B";
+        cpu->OpCycle = 1;
+        cpu->pc += 1;
+        // No operation needed, juste copy B to B 
         break;
     case 0x41:
         cpu->OpcodeName = "LD B,C";

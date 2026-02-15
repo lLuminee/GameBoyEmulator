@@ -2,8 +2,8 @@
 #include <iostream>
 #include <stdint.h>
 #include <vector>
-#include <SDL.h>
 #include <atomic>
+#include <SFML/Graphics.hpp>
 
 class Cpu
 {
@@ -26,10 +26,9 @@ public:
     std::atomic<bool> isStep = true;   // Contrôle du step pour le CPU
     const char * RomPath;
 
-    SDL_Window* Main_Windo;
-    SDL_Window* VRAM_Windo;
-    SDL_Renderer* FrameBuffer;
-    SDL_Renderer* VRAM_Renderer;
+    sf::RenderWindow Main_Window;
+    sf::RenderWindow VRAM_Window;
+
 
 
     int pc = 0x0100;
@@ -87,8 +86,8 @@ public:
         bool LCD_PPU_enable;
     };
     
-    IE_str IE{0,0,0,0};
-    IF_str IF{0,0,0,0};
+    IE_str IE{0,0,0,0,0};
+    IF_str IF{0,0,0,0,0};
 
     LCDC_str LCDC{1,0,0,1,1,0,1,1};
     uint8_t BG_Palette[4];    // Palette de fond (Background)
@@ -111,4 +110,17 @@ public:
     void AddOpcodeEntry(uint16_t address, uint8_t id, const std::string& description, uint16_t opcode);
     void _cpu();
 
+    void Load8bitInRegistre_low(uint8_t value, uint16_t* registre);
+    void Load8bitInRegistre_high(uint8_t value, uint16_t* registre);
+    void Load16bitInRegistre(uint16_t value, uint16_t* registre);
+    void LoadInMemory(uint16_t addr,uint8_t value);
+    uint8_t ReadRegistre_low(uint16_t* registre);
+    uint8_t ReadRegistre_high(uint16_t* registre);
+    uint16_t ReadRegistre_16(uint16_t* registre);
+    void DecrRegistre_low(uint16_t* registre);
+    void DecrRegistre_high(uint16_t* registre);
+    void DecrRegistre_16(uint16_t* registre);
+    void IncrRegistre_low(uint16_t* registre);
+    void IncrRegistre_high(uint16_t* registre);
+    void IncrRegistre_16(uint16_t* registre);
 };

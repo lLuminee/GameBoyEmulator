@@ -1,9 +1,11 @@
 #include <iostream>
-#include <SDL.h>
+#include <SFML/Graphics.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/System/Clock.hpp>
+#include <SFML/Window/Event.hpp>
 #include <imgui.h>
-#include <imgui_impl_sdl2.h>
-#include <imgui_impl_sdlrenderer2.h>
 #include <imgui_memory_editor.h>
+#include <imgui-SFML.h>
 #include <nfd.h>
 #include <vector>
 #include <thread>
@@ -17,7 +19,7 @@
 #include "../include/MainScreen.h"
 #include "../include/OpcodeHistory.h"
 
-#define WITH 1600 
+#define WIDTH 1600 
 #define HEIGHT 720 
 
 const float FPS = 60.0f;
@@ -27,7 +29,7 @@ const int SCANLINE_CYCLES = 456;     // Cycles d'horloge par ligne de scanline
 std::atomic<bool> running(true);  // Indicateur de fonctionnement global
 std::mutex cpuMutex;
 bool MainRunning = true;
-
+sf::Clock deltaClock;
 
 void CheckInterrupts (Cpu &cpu) {
     /*Interrupt enable*/
@@ -87,37 +89,45 @@ void CheckInterrupts (Cpu &cpu) {
 }
 
 void EmulationThread(Cpu &cpu, Opcode &op, grid &grid) {
+    (void) grid;
     int cycleCount = 0;
     while (running) {
-
-        
-        grid.CalculateTile(cpu.Memory, &cpu);
         
         if (cpu.Step || cpu.isStep == false) {
             std::cout << "Cycle : " << cycleCount << std::endl;
-            std::lock_guard<std::mutex> lock(cpuMutex);
-            cycleCount += cpu.OpCycle;  // Accumuler les cycles effectués par chaque opcode
-            op.OpcodeStep(cpu.isStep, op, cpu);
-            cpu._cpu();
-            CheckInterrupts(cpu);
+            {
+                std::lock_guard<std::mutex> lock(cpuMutex);
+                cycleCount += cpu.OpCycle;  // Accumuler les cycles effectués par chaque opcode
+                op.OpcodeStep(cpu.isStep, op, cpu);
+                cpu._cpu();
+                CheckInterrupts(cpu);
+            }
         }
         
         if (cycleCount >= SCANLINE_CYCLES) {
-            std::lock_guard<std::mutex> lock(cpuMutex);
-            cpu.Memory[0xFF44]++;
-            if (cpu.Memory[0xFF44] > 153) {
-                cpu.Memory[0xFF44] = 0;
+            {
+                std::lock_guard<std::mutex> lock(cpuMutex);
+                cpu.Memory[0xFF44]++;
+                if (cpu.Memory[0xFF44] > 153) {
+                    cpu.Memory[0xFF44] = 0;
+                }
+                if (cpu.Memory[0xFF44] >= 144) {
+                    cpu.Memory[0xFF0F] |= 0x01;
+                }
+                cycleCount -= SCANLINE_CYCLES;
             }
-            if (cpu.Memory[0xFF44] >= 144) {
-                cpu.Memory[0xFF0F] |= 0x01;
-            }
-            cycleCount -= SCANLINE_CYCLES;
         }
 
         if (cycleCount >= CYCLES_PER_FRAME) {
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(FRAME_DURATION)));
             cycleCount = 0;
         }
+        if (cpu.Main_Window.isOpen() == false) {
+            MainRunning = false;
+            running = false;
+            break;
+        }
+
     }
 }
 
@@ -129,112 +139,62 @@ int main(int argc, char *argv[]) {
     Cpu cpu;
     Opcode op;
 
-    cpu.Init("rom/dmg-acid2.gb");
+    cpu.Init("C:/Users/Dorian/OneDrive/Dev/C++/GB-Emulateur/Gbv0.7/GB-Emulateur/out/rom/dmg-acid2.gb");
     grid.Init(cpu.Memory, &cpu);
 
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-        std::cerr << "SDL_Init failed: " << SDL_GetError() << std::endl;
-        return 1;
+    cpu.Main_Window.create(sf::VideoMode({1600, 720}), "ImGui + SFML = <3");
+    cpu.Main_Window.setFramerateLimit(60);
+
+    /*
+    cpu.VRAM_Window.create(sf::VideoMode({800, 800}), "VRAM");
+    cpu.VRAM_Window.setFramerateLimit(60);
+    */
+    if (!ImGui::SFML::Init(cpu.Main_Window)) {
+    std::cerr << "Failed to initialize ImGui for Main_Window!" << std::endl;
+    return -1;
     }
 
-    cpu.Main_Windo = SDL_CreateWindow("GameLumine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WITH, HEIGHT, SDL_WINDOW_SHOWN);
-    if (cpu.Main_Windo == nullptr){
-        std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << std::endl;
-        return 1;
-    }
-
-    cpu.FrameBuffer = SDL_CreateRenderer(cpu.Main_Windo, -1, 0);
-    if (cpu.FrameBuffer == nullptr){
-        std::cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << std::endl;
-        return 1;
-    }   
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void) io;
-    ImGui_ImplSDL2_InitForSDLRenderer(cpu.Main_Windo, cpu.FrameBuffer);
-    ImGui_ImplSDLRenderer2_Init(cpu.FrameBuffer);
 
     
     std::thread emulationThread(EmulationThread, std::ref(cpu), std::ref(op), std::ref(grid));
-    auto previous = std::chrono::high_resolution_clock::now();
     
-    while (MainRunning) {
-        auto current = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float, std::milli> elapsed = current - previous;
-        previous = current;
+    while (cpu.Main_Window.isOpen() && MainRunning) {
+        while (const auto event = cpu.Main_Window.pollEvent()) {
+            ImGui::SFML::ProcessEvent(cpu.Main_Window, *event);     
 
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                MainRunning = false;
+            if (event->is<sf::Event::Closed>()) {
+                cpu.Main_Window.close();
             }
-            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-                if (event.window.windowID == SDL_GetWindowID(cpu.Main_Windo)) {
-                    MainRunning = false;
-                } else if (event.window.windowID == SDL_GetWindowID(cpu.VRAM_Windo)) {
-                    cpu.ShowVram = false;
-                    SDL_DestroyRenderer(cpu.VRAM_Renderer);
-                    SDL_DestroyWindow(cpu.VRAM_Windo);
-                    cpu.VRAM_Renderer = nullptr;
-                    cpu.VRAM_Windo = nullptr;
-                }
-            }
-            
-            ImGui_ImplSDL2_ProcessEvent(&event);
         }
+
         if (cpu.IsReset) {
             cpu.Init(cpu.RomPath);
             grid.Init(cpu.Memory, &cpu);
             cpu.IsReset = false;
         }
-
-        ImGui_ImplSDL2_NewFrame();
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui::NewFrame();
-
+        ImGui::SFML::Update(cpu.Main_Window, deltaClock.restart());
         MainScreen mainScreen(cpu);
         
-        SDL_SetRenderDrawColor(cpu.FrameBuffer, 0,0,0,255);
-        SDL_RenderClear(cpu.FrameBuffer);
-
+        cpu.Main_Window.clear();
         mainScreen.Render();
-        ImGui::Render();
-
-    
-        grid.Render(cpu.FrameBuffer, &cpu);
-
-
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), cpu.FrameBuffer);
-
-        SDL_RenderPresent(cpu.FrameBuffer);
-
-        if (cpu.ShowVram == true) {
-            SDL_SetRenderDrawColor(cpu.VRAM_Renderer, 0, 0, 0, 255);
-            SDL_RenderClear(cpu.VRAM_Renderer);
-            grid.Tile_Block_Render(cpu.VRAM_Renderer, cpu.Memory, &cpu);
-            grid.Tile_Map_Render(cpu.VRAM_Renderer, cpu.Memory, &cpu);
-            SDL_RenderPresent(cpu.VRAM_Renderer);
-        }
         
-        if (elapsed.count() < FRAME_DURATION) {
-            SDL_Delay(static_cast<Uint32>(FRAME_DURATION - elapsed.count()));
-        } else {
-            //std::cout << "Frame overrun by " << elapsed.count() - FRAME_DURATION << " ms\n";
+        ImGui::SFML::Render(cpu.Main_Window); 
+        grid.CalculateTile(cpu.Memory, &cpu);
+        grid.Render(&cpu, &cpu.Main_Window);
+        cpu.Main_Window.display();
+
+        if (cpu.ShowVram) {
+            cpu.VRAM_Window.clear();
+            grid.Tile_Block_Render(cpu.Memory, &cpu, &cpu.VRAM_Window);
+            grid.Tile_Map_Render(cpu.Memory, &cpu, &cpu.VRAM_Window);
+            cpu.VRAM_Window.display();
         }
+
+        
         
     }
-
-
-    ImGui_ImplSDLRenderer2_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
-
-    SDL_DestroyRenderer(cpu.FrameBuffer);
-    SDL_DestroyWindow(cpu.Main_Windo);
-    SDL_DestroyRenderer(cpu.VRAM_Renderer);
-    SDL_DestroyWindow(cpu.VRAM_Windo);
-    SDL_Quit();
+    ImGui::SFML::Shutdown();
+    emulationThread.join();
 
     return 0;
-}   
+}

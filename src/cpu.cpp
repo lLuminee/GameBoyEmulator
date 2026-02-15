@@ -2,10 +2,10 @@
 #include <cstring>
 #include "../include/cpu.h"
 #include <iostream>
-#include <SDL.h>
 #include <iomanip>
 #include <sstream>
 #include <fstream>
+#include <SFML/Graphics.hpp>
 
 void Cpu::Init(const char *path) {
     std::cout << "Initializing CPU" << std::endl;
@@ -34,7 +34,7 @@ void Cpu::Init(const char *path) {
 
     
 
-    RomName[16] = '\0';
+    RomName[15] = '\0';
     licensee_code[1] = 0;
 
     LoadGame(path);
@@ -256,4 +256,76 @@ void Cpu::AddOpcodeEntry(uint16_t address, uint8_t id, const std::string& descri
     if (opcodeHistory.size() > 18) { // Limiter la taille de l'historique
         opcodeHistory.erase(opcodeHistory.begin());
     }
+}
+
+void Cpu::Load8bitInRegistre_low(uint8_t value, uint16_t* registre) {
+    uint8_t low_bit = (value & 0xFF00) >> 8;
+    *registre = (*registre & 0xFF00) | low_bit;
+}
+
+void Cpu::Load8bitInRegistre_high(uint8_t value, uint16_t* registre) {
+    uint8_t high_bit = value & 0x00FF;
+    *registre = (*registre & 0x00FF) | (high_bit << 8);
+}
+
+void Cpu::Load16bitInRegistre(uint16_t value, uint16_t* registre) {
+    uint8_t low_bit = (value & 0xFF00) >> 8;
+    uint8_t high_bit = value & 0x00FF;
+    *registre = low_bit | (high_bit << 8);
+}
+void Cpu::LoadInMemory(uint16_t addr,uint8_t value) {
+    Memory[addr] = value;
+}
+
+uint8_t Cpu::ReadRegistre_low(uint16_t* registre) {
+    return (*registre & 0x00FF);
+}
+uint8_t Cpu::ReadRegistre_high(uint16_t* registre) {
+    return (*registre >> 8) & 0xFF;
+}
+uint16_t Cpu::ReadRegistre_16(uint16_t* registre) {
+    return *registre;
+}
+void Cpu::DecrRegistre_low(uint16_t* registre) {
+    uint8_t before = *registre & 0x00FF;
+    uint8_t low = before - 1;
+    *registre = (*registre & 0xFF00) | low;    
+    z = (low == 0) ? 1 : 0;
+    n = 1;
+    h = ((before & 0x0F) == 0x00) ? 1 : 0; 
+}
+
+void Cpu::DecrRegistre_high(uint16_t* registre) {
+    uint8_t before = *registre >> 8;
+    uint8_t high = before - 1;
+    *registre = (*registre & 0x00FF) | (high << 8);
+    z = (high == 0) ? 1 : 0;
+    n = 1;
+    h = ((before & 0x0F) == 0x00) ? 1 : 0;  
+}
+
+void Cpu::DecrRegistre_16(uint16_t* registre) {
+    *registre = *registre - 1;
+}
+
+void Cpu::IncrRegistre_low(uint16_t* registre) {
+    uint8_t before = *registre & 0x00FF;
+    uint8_t low = before + 1;
+    *registre = (*registre & 0xFF00) | low;    
+    z = (low == 0) ? 1 : 0;
+    n = 1;
+    h = ((before & 0x0F) == 0x00) ? 1 : 0; 
+}
+
+void Cpu::IncrRegistre_high(uint16_t* registre) {
+    uint8_t before = *registre >> 8;
+    uint8_t high = before + 1;
+    *registre = (*registre & 0x00FF) | (high << 8);
+    z = (high == 0) ? 1 : 0;
+    n = 1;
+    h = ((before & 0x0F) == 0x00) ? 1 : 0;  
+}
+
+void Cpu::IncrRegistre_16(uint16_t* registre) {
+    *registre = *registre + 1;
 }

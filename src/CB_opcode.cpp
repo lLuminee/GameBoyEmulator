@@ -5,6 +5,7 @@
 
 
 void CB_op::BIT_7_HL(Cpu* cpu, uint16_t opcode) {
+    (void)opcode; // Suppression de l'avertissement non utilisé
     uint8_t value = (cpu->Memory[cpu->HL]);
     
     bool bit7_set = (value & 0x80);  // 0x80 est 10000000 en binaire

@@ -1,14 +1,14 @@
 #pragma once
-#include <SDL.h>
 #include "../include/cpu.h"
+#include <SFML/Graphics.hpp>
 
 class grid
 {
 public:
     void Init(uint8_t* Memory, Cpu* cpu);
-    void Render(SDL_Renderer* renderer,Cpu* cpu);
-    void Tile_Block_Render(SDL_Renderer* renderer, uint8_t* Memory, Cpu* cpu);
-    void Tile_Map_Render(SDL_Renderer* renderer, uint8_t* Memory, Cpu* cpu);
+    void Render(Cpu* cpu, sf::RenderWindow* Window);
+    void Tile_Block_Render(uint8_t* Memory, Cpu* cpu, sf::RenderWindow* Window);
+    void Tile_Map_Render(uint8_t* Memory, Cpu* cpu, sf::RenderWindow* Window);
     
     void PlacePixel(int x, int y, int color);
 

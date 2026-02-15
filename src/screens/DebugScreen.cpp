@@ -200,7 +200,7 @@ void DebugScreen::Render() {
     ImGui::Columns(1);
     
     ImGui::Text("LY : %02X", cpu.LY);
-    ImGui::SameLine;
+    ImGui::SameLine();
     ImGui::Text("LYC : %02X", cpu.LYC);
 
 
